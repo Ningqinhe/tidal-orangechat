@@ -11,7 +11,7 @@ jobs:
           distribution: temurin
           java-version: '21'
       - name: clone
-        run: git clone --depth 1 https://github.com/sue1231513/orangechat.git src
+        run: git clone --depth 1 --branch v2.2.3 https://github.com/sue1231513/orangechat.git src
       - name: theme
         working-directory: src
         run: |
