@@ -1,0 +1,96 @@
+name: 潮汐回声 APK
+
+on: workflow_dispatch
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: 拉橘瓣源码
+        run: git clone --depth 1 https://github.com/sue1231513/orangechat.git src
+
+      - name: 默认主题·应用名
+        working-directory: src
+        run: |
+          F=app/src/main/java/me/rerere/rikkahub/data/datastore/PreferencesStore.kt
+          sed -i 's/PresetThemes\[0\].id/"pearltide"/g' "$F"
+          sed -i 's|<string name="app_name">橘瓣</string>|<string name="app_name">潮汐回声</string>|' app/src/main/res/values/strings.xml
+          grep -n 'pearltide' "$F" | head
+          grep -n 'app_name' app/src/main/res/values/strings.xml | head -1
+
+      - name: 字体·图标
+        working-directory: src
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq imagemagick
+          mkdir -p app/src/main/res/font
+          curl -sL -o app/src/main/res/font/noto_serif_sc.ttf "https://raw.githubusercontent.com/google/fonts/main/ofl/notoserifsc/NotoSerifSC%5Bwght%5D.ttf" || true
+          if [ ! -s app/src/main/res/font/noto_serif_sc.ttf ]; then
+            curl -sL -o app/src/main/res/font/noto_serif_sc.ttf "https://github.com/google/fonts/raw/main/ofl/notoserifsc/NotoSerifSC%5Bwght%5D.ttf" || true
+          fi
+          ls -la app/src/main/res/font/
+          curl -sL -o /tmp/icon.png "https://raw.githubusercontent.com/anhe2021212-spec/Tidal_Echo/main/web/icon-512.png"
+          for spec in mdpi:48 hdpi:72 xhdpi:96 xxhdpi:144 xxxhdpi:192; do
+            d=${spec%%:*}; s=${spec##*:}
+            convert /tmp/icon.png -resize ${s}x${s} app/src/main/res/mipmap-$d/ic_launcher.png || true
+          done
+          for spec in mdpi:108 hdpi:162 xhdpi:216 xxhdpi:324 xxxhdpi:432; do
+            d=${spec%%:*}; s=${spec##*:}
+            convert /tmp/icon.png -resize $((s*66/100))x$((s*66/100)) -background none -gravity center -extent ${s}x${s} app/src/main/res/mipmap-$d/ic_launcher_foreground.png || true
+          done
+
+      - name: 衬线字体样式
+        working-directory: src
+        run: |
+          python3 - <<'PY'
+          p = 'app/src/main/java/me/rerere/rikkahub/ui/theme/Type.kt'
+          s = open(p, encoding='utf-8').read()
+          if 'SerifCn' not in s:
+              s += '\n\nval SerifCn = FontFamily(Font(R.font.noto_serif_sc))\n'
+          if 'val Typography = Typography()' in s:
+              s = s.replace(
+                  'val Typography = Typography()',
+                  'private val BaseTypo = Typography()\n\n'
+                  'val Typography = BaseTypo.copy(\n'
+                  '    displayLarge = BaseTypo.displayLarge.copy(fontFamily = SerifCn),\n'
+                  '    displayMedium = BaseTypo.displayMedium.copy(fontFamily = SerifCn),\n'
+                  '    headlineLarge = BaseTypo.headlineLarge.copy(fontFamily = SerifCn),\n'
+                  '    headlineMedium = BaseTypo.headlineMedium.copy(fontFamily = SerifCn),\n'
+                  '    headlineSmall = BaseTypo.headlineSmall.copy(fontFamily = SerifCn),\n'
+                  '    titleLarge = BaseTypo.titleLarge.copy(fontFamily = SerifCn),\n'
+                  '    titleMedium = BaseTypo.titleMedium.copy(fontFamily = SerifCn),\n'
+                  '    bodyLarge = BaseTypo.bodyLarge.copy(fontFamily = SerifCn),\n'
+                  '    bodyMedium = BaseTypo.bodyMedium.copy(fontFamily = SerifCn),\n'
+                  '    labelLarge = BaseTypo.labelLarge.copy(fontFamily = SerifCn),\n'
+                  ')'
+              )
+          open(p, 'w', encoding='utf-8').write(s)
+          PY
+          grep -n 'SerifCn\|BaseTypo' app/src/main/java/me/rerere/rikkahub/ui/theme/Type.kt | head
+
+      - name: 编译
+        working-directory: src
+        run: |
+          echo "sdk.dir=${ANDROID_HOME:-/usr/local/lib/android/sdk}" > local.properties
+          chmod +x gradlew
+          ./gradlew :app:assembleDebug --no-daemon
+
+      - name: 上传 APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: chaoxihuisheng-apk
+          path: src/app/build/outputs/apk/debug/app-debug.apk
+
+      - name: 发到 Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: build-${{ github.run_number }}
+          name: 潮汐回声 ${{ github.run_number }}
+          files: src/app/build/outputs/apk/debug/app-debug.apk
