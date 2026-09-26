@@ -29,13 +29,16 @@ jobs:
           npm i -g pnpm
           echo "sdk.dir=${ANDROID_HOME:-/usr/local/lib/android/sdk}" > local.properties
           chmod +x gradlew
-          set +e
-          ./gradlew :app:assembleDebug --no-daemon 2>&1 | tee /tmp/b.log
-          code=${PIPESTATUS[0]}
-          grep -n "^e: " /tmp/b.log | head -20
-          exit $code
-      - name: release
-        uses: softprops/action-gh-release@v2
+          ./gradlew :app:assembleDebug --no-daemon
+      - name: apk
+        run: |
+          find src -name "*.apk" -exec ls -la {} \;
+          cp src/app/build/outputs/apk/debug/*.apk ./app.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: apk
+          path: app.apk
+      - uses: softprops/action-gh-release@v2
         with:
           tag_name: b${{ github.run_number }}
-          files: src/app/build/outputs/apk/debug/app-debug.apk
+          files: app.apk
