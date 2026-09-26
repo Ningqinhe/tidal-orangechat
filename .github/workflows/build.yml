@@ -19,10 +19,10 @@ jobs:
           sed -i 's|name="app_name">橘瓣<|name="app_name">潮汐回声<|' app/src/main/res/values/strings.xml
           sudo apt-get update -qq
           sudo apt-get install -y -qq imagemagick
-          curl -sL -o /tmp/i.png "https://raw.githubusercontent.com/anhe2021212/picgo/main/img/20250615164309999.png"
+          curl -sL -o /tmp/i.png "https://raw.githubusercontent.com/anhe2021212-spec/Tidal_Echo/main/web/icon-512.png" || true
           for s in mdpi:48 hdpi:72 xhdpi:96 xxhdpi:144 xxxhdpi:192; do
             d=${s%%:*}; n=${s##*:}
-            convert /tmp/i.png -resize ${n}x${n} app/src/main/res/mipmap-$d/ic_launcher.png
+            convert /tmp/i.png -resize ${n}x${n} app/src/main/res/mipmap-$d/ic_launcher.png || true
           done
       - name: build
         working-directory: src
